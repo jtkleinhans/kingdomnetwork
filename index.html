@@ -741,16 +741,16 @@
             }
         }
 
-        // Radio controls with Listen2MyRadio server (working format)
+        // Radio controls with correct SHOUTcast format
         let radioAudio = null;
         let currentStreamIndex = 0;
         const radioStreams = [
-            'http://uk3freenew.listen2myradio.com:16580',
+            'http://uk3freenew.listen2myradio.com:16580/;stream.mp3',
+            'http://uk3freenew.listen2myradio.com:16580/;',
+            'http://78.129.150.207:16580/;stream.mp3',
+            'http://78.129.150.207:16580/;',
             'http://uk3freenew.listen2myradio.com:16580/',
-            'http://78.129.150.207:16580',
-            'http://78.129.150.207:16580/',
-            'http://uk3freenew.listen2myradio.com:16580/stream.mp3',
-            'http://78.129.150.207:16580/stream.mp3'
+            'http://78.129.150.207:16580/'
         ];
 
         function toggleRadio() {
@@ -761,7 +761,7 @@
                 // Start playing radio stream
                 radioPlaying = true;
                 radioIcon.className = 'fas fa-pause';
-                radioTrack.textContent = 'Heaven\'s Embassy Radio - Connecting...';
+                radioTrack.textContent = 'Heaven\'s Embassy Radio - Starting Stream...';
                 
                 // Try to connect to radio stream
                 connectToRadioStream(0);
@@ -775,6 +775,7 @@
                 if (radioAudio) {
                     radioAudio.pause();
                     radioAudio.src = '';
+                    radioAudio.load(); // Clear the audio element
                     radioAudio = null;
                 }
             }
@@ -782,72 +783,93 @@
 
         function connectToRadioStream(streamIndex) {
             if (streamIndex >= radioStreams.length) {
-                // All streams failed, show error
-                document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Check Connection';
-                console.log('All radio stream attempts failed');
+                // All streams failed
+                document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Unable to Connect';
+                console.log('All SHOUTcast stream attempts failed');
                 
-                // Show helpful message after all attempts
+                // Reset radio state
+                radioPlaying = false;
+                document.getElementById('radioIcon').className = 'fas fa-play';
+                
                 setTimeout(() => {
-                    alert('🔧 Radio Connection Tips:\n\n' +
-                          '• Make sure your browser allows audio\n' +
-                          '• Try refreshing the page\n' +
-                          '• Check if your firewall blocks audio streams\n' +
-                          '• Stream is broadcasting at 128 kbps\n\n' +
-                          'Direct stream URL: http://uk3freenew.listen2myradio.com:16580');
+                    alert('📻 Radio Connection Issue\n\n' +
+                          'The radio stream is active but your browser may be blocking it.\n\n' +
+                          '✅ Try these solutions:\n' +
+                          '• Refresh the page and try again\n' +
+                          '• Make sure browser audio is enabled\n' +
+                          '• Try a different browser (Chrome/Firefox)\n' +
+                          '• Check if browser has audio permissions\n\n' +
+                          'Direct stream: http://uk3freenew.listen2myradio.com:16580/;stream.mp3');
                 }, 1000);
                 
                 return;
             }
 
             const streamUrl = radioStreams[streamIndex];
-            console.log(`Attempting Heaven's Embassy Radio connection ${streamIndex + 1}: ${streamUrl}`);
+            console.log(`Testing SHOUTcast stream ${streamIndex + 1}: ${streamUrl}`);
             
-            // Update display
-            document.getElementById('radioTrack').textContent = `Connecting... (${streamIndex + 1}/${radioStreams.length})`;
+            // Update status
+            document.getElementById('radioTrack').textContent = `Connecting to Stream ${streamIndex + 1}...`;
             
-            // Create new audio element
+            // Clean up previous audio
             if (radioAudio) {
                 radioAudio.pause();
+                radioAudio.src = '';
+                radioAudio.removeEventListener('canplay', null);
                 radioAudio.removeEventListener('error', null);
                 radioAudio = null;
             }
             
+            // Create fresh audio element
             radioAudio = new Audio();
-            radioAudio.volume = 0.7;
-            radioAudio.preload = "none";
+            radioAudio.volume = 0.8;
+            radioAudio.preload = "metadata";
             
-            // Handle successful connection
+            // Success handlers
+            radioAudio.addEventListener('loadedmetadata', () => {
+                console.log(`SHOUTcast stream ${streamIndex + 1} metadata loaded`);
+                document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Ready';
+            });
+            
             radioAudio.addEventListener('canplay', () => {
-                console.log(`Heaven's Embassy Radio stream ${streamIndex + 1} is ready`);
-                document.getElementById('radioTrack').textContent = '🔴 Heaven\'s Embassy Radio - LIVE';
+                console.log(`SHOUTcast stream ${streamIndex + 1} can play`);
+                document.getElementById('radioTrack').textContent = '🔴 Heaven\'s Embassy Radio - READY';
             });
             
             radioAudio.addEventListener('play', () => {
-                console.log(`Heaven's Embassy Radio playing from stream ${streamIndex + 1}`);
-                document.getElementById('radioTrack').textContent = '🎵 Heaven\'s Embassy Radio - ON AIR';
+                console.log(`SHOUTcast stream ${streamIndex + 1} started playing`);
+                document.getElementById('radioTrack').textContent = '🎵 Heaven\'s Embassy Radio - LIVE';
                 currentStreamIndex = streamIndex;
             });
             
             radioAudio.addEventListener('playing', () => {
-                document.getElementById('radioTrack').textContent = '🎵 Heaven\'s Embassy Radio - BROADCASTING';
+                console.log(`SHOUTcast is now broadcasting`);
+                document.getElementById('radioTrack').textContent = '🎵 Heaven\'s Embassy Radio - ON AIR';
             });
 
-            radioAudio.addEventListener('loadeddata', () => {
-                console.log(`Heaven's Embassy Radio data loaded from stream ${streamIndex + 1}`);
+            radioAudio.addEventListener('timeupdate', () => {
+                // Stream is actually playing
+                if (radioAudio.currentTime > 0) {
+                    document.getElementById('radioTrack').textContent = '🎵 Heaven\'s Embassy Radio - BROADCASTING';
+                }
             });
             
-            // Handle connection errors
+            // Error handlers
             radioAudio.addEventListener('error', (e) => {
-                console.error(`Heaven's Embassy Radio stream ${streamIndex + 1} error:`, e);
+                console.error(`SHOUTcast stream ${streamIndex + 1} error:`, e.target.error);
+                
                 if (radioPlaying) {
+                    // Try next stream
                     setTimeout(() => {
                         connectToRadioStream(streamIndex + 1);
-                    }, 2000);
+                    }, 1500);
                 }
             });
             
             radioAudio.addEventListener('stalled', () => {
-                console.log(`Stream ${streamIndex + 1} stalled, trying next...`);
+                console.log(`SHOUTcast stream ${streamIndex + 1} stalled`);
+                document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Buffering...';
+                
                 if (radioPlaying) {
                     setTimeout(() => {
                         connectToRadioStream(streamIndex + 1);
@@ -855,38 +877,50 @@
                 }
             });
 
-            radioAudio.addEventListener('waiting', () => {
-                document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Buffering...';
-            });
-
             radioAudio.addEventListener('suspend', () => {
-                console.log(`Stream ${streamIndex + 1} suspended`);
+                console.log(`SHOUTcast stream ${streamIndex + 1} suspended`);
                 if (radioPlaying) {
                     setTimeout(() => {
                         connectToRadioStream(streamIndex + 1);
                     }, 2000);
                 }
             });
+
+            radioAudio.addEventListener('abort', () => {
+                console.log(`SHOUTcast stream ${streamIndex + 1} aborted`);
+                if (radioPlaying) {
+                    setTimeout(() => {
+                        connectToRadioStream(streamIndex + 1);
+                    }, 1500);
+                }
+            });
             
-            // Try to load and play
+            // Set source and load
             radioAudio.src = streamUrl;
             radioAudio.load();
             
-            // Give it time to load, then try to play
+            // Attempt to play after a brief delay
             setTimeout(() => {
                 if (radioPlaying && radioAudio) {
                     const playPromise = radioAudio.play();
                     
                     if (playPromise !== undefined) {
                         playPromise.then(() => {
-                            console.log(`Heaven's Embassy Radio stream ${streamIndex + 1} playing successfully`);
+                            console.log(`SHOUTcast stream ${streamIndex + 1} play promise resolved`);
                         }).catch(error => {
-                            console.error(`Play failed for stream ${streamIndex + 1}:`, error.name, error.message);
+                            console.error(`SHOUTcast play error for stream ${streamIndex + 1}:`, error);
                             
                             if (error.name === 'NotAllowedError') {
-                                document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Click to Allow Audio';
+                                document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Click to Enable Audio';
                                 radioPlaying = false;
                                 document.getElementById('radioIcon').className = 'fas fa-play';
+                            } else if (error.name === 'NotSupportedError') {
+                                // Try next stream format
+                                if (radioPlaying) {
+                                    setTimeout(() => {
+                                        connectToRadioStream(streamIndex + 1);
+                                    }, 1000);
+                                }
                             } else if (radioPlaying) {
                                 // Try next stream
                                 setTimeout(() => {
@@ -896,12 +930,12 @@
                         });
                     }
                 }
-            }, 1000);
+            }, 1200);
         }
 
         function retryRadioConnection() {
             if (radioPlaying) {
-                console.log('Retrying Heaven\'s Embassy Radio connection...');
+                console.log('Retrying Heaven\'s Embassy Radio SHOUTcast connection...');
                 connectToRadioStream(0);
             }
         }
