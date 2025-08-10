@@ -741,21 +741,74 @@
             }
         }
 
-        // Radio controls
+        // Radio controls with real streaming
+        let radioAudio = null;
+
         function toggleRadio() {
             const radioIcon = document.getElementById('radioIcon');
             const radioTrack = document.getElementById('radioTrack');
             
             if (!radioPlaying) {
+                // Start playing real radio stream
                 radioPlaying = true;
                 radioIcon.className = 'fas fa-pause';
-                radioTrack.textContent = 'Christian Worship Mix - LIVE';
-                alert('🎵 HEM\'s Radio is now playing!\n\n24/7 Christian Music & Sermons\nBroadcasting inspiring content worldwide! 🙏');
+                radioTrack.textContent = 'HEM\'s Radio - LIVE STREAMING';
+                
+                // Create audio element for radio stream
+                radioAudio = new Audio('https://heavensembassy.radio.12345.com');
+                radioAudio.crossOrigin = "anonymous";
+                radioAudio.volume = 0.7;
+                
+                // Try to play the stream
+                radioAudio.play().then(() => {
+                    console.log('Radio stream started successfully');
+                    updateRadioStatus('🔴 LIVE - HEM\'s Radio Broadcasting');
+                }).catch(error => {
+                    console.error('Radio stream error:', error);
+                    // Fallback message
+                    radioTrack.textContent = 'HEM\'s Radio - Connecting...';
+                    // Try alternative connection after 2 seconds
+                    setTimeout(retryRadioConnection, 2000);
+                });
+                
+                // Add event listeners
+                radioAudio.addEventListener('loadstart', () => {
+                    radioTrack.textContent = 'HEM\'s Radio - Connecting...';
+                });
+                
+                radioAudio.addEventListener('canplay', () => {
+                    radioTrack.textContent = '🔴 HEM\'s Radio - LIVE';
+                });
+                
+                radioAudio.addEventListener('error', (e) => {
+                    radioTrack.textContent = 'HEM\'s Radio - Connection Error';
+                    console.error('Radio error:', e);
+                });
+                
             } else {
+                // Stop playing radio
                 radioPlaying = false;
                 radioIcon.className = 'fas fa-play';
-                radioTrack.textContent = 'Christian Worship Mix';
+                radioTrack.textContent = 'HEM\'s Radio - Click to Play';
+                
+                if (radioAudio) {
+                    radioAudio.pause();
+                    radioAudio = null;
+                }
             }
+        }
+
+        function retryRadioConnection() {
+            if (radioAudio && radioPlaying) {
+                radioAudio.load();
+                radioAudio.play().catch(error => {
+                    document.getElementById('radioTrack').textContent = 'HEM\'s Radio - Please try again';
+                });
+            }
+        }
+
+        function updateRadioStatus(status) {
+            document.getElementById('radioTrack').textContent = status;
         }
 
         function updateRadioTrack() {
