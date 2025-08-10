@@ -741,49 +741,27 @@
             }
         }
 
-        // Radio controls with real streaming
+        // Radio controls with multiple backup streams
         let radioAudio = null;
+        let currentStreamIndex = 0;
+        const radioStreams = [
+            'https://heavensembassy.radiostream321.com',
+            'https://heavensembassy.radio12345.com', 
+            'https://heavensembassy.radiostream123.com'
+        ];
 
         function toggleRadio() {
             const radioIcon = document.getElementById('radioIcon');
             const radioTrack = document.getElementById('radioTrack');
             
             if (!radioPlaying) {
-                // Start playing real radio stream
+                // Start playing radio stream
                 radioPlaying = true;
                 radioIcon.className = 'fas fa-pause';
-                radioTrack.textContent = 'HEM\'s Radio - LIVE STREAMING';
+                radioTrack.textContent = 'HEM\'s Radio - Connecting...';
                 
-                // Create audio element for radio stream
-                radioAudio = new Audio('https://heavensembassy.radio.12345.com');
-                radioAudio.crossOrigin = "anonymous";
-                radioAudio.volume = 0.7;
-                
-                // Try to play the stream
-                radioAudio.play().then(() => {
-                    console.log('Radio stream started successfully');
-                    updateRadioStatus('🔴 LIVE - HEM\'s Radio Broadcasting');
-                }).catch(error => {
-                    console.error('Radio stream error:', error);
-                    // Fallback message
-                    radioTrack.textContent = 'HEM\'s Radio - Connecting...';
-                    // Try alternative connection after 2 seconds
-                    setTimeout(retryRadioConnection, 2000);
-                });
-                
-                // Add event listeners
-                radioAudio.addEventListener('loadstart', () => {
-                    radioTrack.textContent = 'HEM\'s Radio - Connecting...';
-                });
-                
-                radioAudio.addEventListener('canplay', () => {
-                    radioTrack.textContent = '🔴 HEM\'s Radio - LIVE';
-                });
-                
-                radioAudio.addEventListener('error', (e) => {
-                    radioTrack.textContent = 'HEM\'s Radio - Connection Error';
-                    console.error('Radio error:', e);
-                });
+                // Try to connect to radio stream
+                connectToRadioStream(0);
                 
             } else {
                 // Stop playing radio
@@ -793,17 +771,98 @@
                 
                 if (radioAudio) {
                     radioAudio.pause();
+                    radioAudio.src = '';
                     radioAudio = null;
                 }
             }
         }
 
-        function retryRadioConnection() {
-            if (radioAudio && radioPlaying) {
-                radioAudio.load();
-                radioAudio.play().catch(error => {
-                    document.getElementById('radioTrack').textContent = 'HEM\'s Radio - Please try again';
+        function connectToRadioStream(streamIndex) {
+            if (streamIndex >= radioStreams.length) {
+                // All streams failed, show error
+                document.getElementById('radioTrack').textContent = 'HEM\'s Radio - Connection Failed';
+                return;
+            }
+
+            const streamUrl = radioStreams[streamIndex];
+            console.log(`Trying radio stream ${streamIndex + 1}: ${streamUrl}`);
+            
+            // Create new audio element
+            if (radioAudio) {
+                radioAudio.pause();
+                radioAudio = null;
+            }
+            
+            radioAudio = new Audio();
+            radioAudio.crossOrigin = "anonymous";
+            radioAudio.volume = 0.8;
+            radioAudio.preload = "none";
+            
+            // Set up event listeners before setting src
+            radioAudio.addEventListener('loadstart', () => {
+                console.log(`Loading stream ${streamIndex + 1}...`);
+                document.getElementById('radioTrack').textContent = `HEM\'s Radio - Connecting to Stream ${streamIndex + 1}...`;
+            });
+            
+            radioAudio.addEventListener('canplay', () => {
+                console.log(`Stream ${streamIndex + 1} ready to play`);
+                document.getElementById('radioTrack').textContent = '🔴 HEM\'s Radio - LIVE';
+            });
+            
+            radioAudio.addEventListener('play', () => {
+                console.log(`Stream ${streamIndex + 1} playing successfully`);
+                document.getElementById('radioTrack').textContent = '🔴 HEM\'s Radio - BROADCASTING LIVE';
+                currentStreamIndex = streamIndex;
+            });
+            
+            radioAudio.addEventListener('error', (e) => {
+                console.error(`Stream ${streamIndex + 1} failed:`, e);
+                if (radioPlaying) {
+                    // Try next stream
+                    setTimeout(() => {
+                        connectToRadioStream(streamIndex + 1);
+                    }, 1000);
+                }
+            });
+            
+            radioAudio.addEventListener('stalled', () => {
+                console.log(`Stream ${streamIndex + 1} stalled, trying next...`);
+                if (radioPlaying) {
+                    setTimeout(() => {
+                        connectToRadioStream(streamIndex + 1);
+                    }, 2000);
+                }
+            });
+            
+            // Set source and try to play
+            radioAudio.src = streamUrl;
+            radioAudio.load();
+            
+            // Attempt to play with user gesture handling
+            const playPromise = radioAudio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    console.log(`Stream ${streamIndex + 1} started successfully`);
+                }).catch(error => {
+                    console.error(`Failed to play stream ${streamIndex + 1}:`, error);
+                    if (radioPlaying && error.name !== 'NotAllowedError') {
+                        // Try next stream if it's not a user interaction issue
+                        setTimeout(() => {
+                            connectToRadioStream(streamIndex + 1);
+                        }, 1000);
+                    } else if (error.name === 'NotAllowedError') {
+                        document.getElementById('radioTrack').textContent = 'HEM\'s Radio - Click Play to Start';
+                        radioPlaying = false;
+                        document.getElementById('radioIcon').className = 'fas fa-play';
+                    }
                 });
+            }
+        }
+
+        function retryRadioConnection() {
+            if (radioPlaying) {
+                connectToRadioStream(0);
             }
         }
 
