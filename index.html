@@ -623,6 +623,14 @@
                         <div class="schedule-time">6:00 PM</div>
                         <div class="schedule-program">Evening Prayer</div>
                     </div>
+                    <div class="schedule-item">
+                        <div class="schedule-time">12:00 - 13:00</div>
+                        <div class="schedule-program">Brood Van Die Lewe - Profeet Meriba Kleinhans</div>
+                    </div>
+                    <div class="schedule-item">
+                        <div class="schedule-time">13:00 - 14:00</div>
+                        <div class="schedule-program">Jesus By Die Braambos</div>
+                    </div>
                 </div>
             </div>
 
@@ -693,6 +701,15 @@
             'ministry_moderator': 'Mod_KN2025!'
         };
 
+        // Radio controls with CORS fix
+        let radioAudio = null;
+        let currentStreamIndex = 0;
+        const radioStreams = [
+            'https://uk6freenew.listen2myradio.com/live.mp3?typeportmount=s1_24858_stream_690890625', // HEM's Radio live stream
+            'https://playerservices.streamtheworld.com/api/livestream-redirect/IM_1.mp3', // Fallback: Moody Radio
+            'https://stream.air1.com/air1.mp3' // Fallback: Air1 Worship
+        ];
+
         // Initialize everything when page loads
         document.addEventListener('DOMContentLoaded', function() {
             updateSchedule();
@@ -741,18 +758,6 @@
             }
         }
 
-        // Radio controls with CORS fix
-        let radioAudio = null;
-        let currentStreamIndex = 0;
-        const radioStreams = [
-            'http://uk3freenew.listen2myradio.com:16580/;stream.mp3',
-            'http://uk3freenew.listen2myradio.com:16580/;',
-            'http://78.129.150.207:16580/;stream.mp3',
-            'http://78.129.150.207:16580/;',
-            'http://uk3freenew.listen2myradio.com:16580/',
-            'http://78.129.150.207:16580/'
-        ];
-
         function toggleRadio() {
             const radioIcon = document.getElementById('radioIcon');
             const radioTrack = document.getElementById('radioTrack');
@@ -799,14 +804,14 @@
                           '• Make sure browser audio is enabled\n' +
                           '• Try a different browser (Chrome/Firefox)\n' +
                           '• Check if browser has audio permissions\n\n' +
-                          'Direct stream: http://uk3freenew.listen2myradio.com:16580/;stream.mp3');
+                          'Direct stream: ' + radioStreams[0]);
                 }, 1000);
                 
                 return;
             }
 
             const streamUrl = radioStreams[streamIndex];
-            console.log(`Testing SHOUTcast stream ${streamIndex + 1}: ${streamUrl}`);
+            console.log(`Testing stream ${streamIndex + 1}: ${streamUrl}`);
             
             // Update status
             document.getElementById('radioTrack').textContent = `Connecting to Stream ${streamIndex + 1}...`;
@@ -822,29 +827,30 @@
             
             // Create fresh audio element with CORS fix
             radioAudio = new Audio();
-            radioAudio.crossOrigin = "anonymous";  // ← CORS FIX ADDED HERE
+            radioAudio.crossOrigin = "anonymous";
             radioAudio.volume = 0.8;
             radioAudio.preload = "metadata";
+            radioAudio.src = streamUrl;
             
             // Success handlers
             radioAudio.addEventListener('loadedmetadata', () => {
-                console.log(`SHOUTcast stream ${streamIndex + 1} metadata loaded`);
+                console.log(`Stream ${streamIndex + 1} metadata loaded`);
                 document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Ready';
             });
             
             radioAudio.addEventListener('canplay', () => {
-                console.log(`SHOUTcast stream ${streamIndex + 1} can play`);
+                console.log(`Stream ${streamIndex + 1} can play`);
                 document.getElementById('radioTrack').textContent = '🔴 Heaven\'s Embassy Radio - READY';
             });
             
             radioAudio.addEventListener('play', () => {
-                console.log(`SHOUTcast stream ${streamIndex + 1} started playing`);
+                console.log(`Stream ${streamIndex + 1} started playing`);
                 document.getElementById('radioTrack').textContent = '🎵 Heaven\'s Embassy Radio - LIVE';
                 currentStreamIndex = streamIndex;
             });
             
             radioAudio.addEventListener('playing', () => {
-                console.log(`SHOUTcast is now broadcasting`);
+                console.log(`Stream is now broadcasting`);
                 document.getElementById('radioTrack').textContent = '🎵 Heaven\'s Embassy Radio - ON AIR';
             });
 
@@ -857,7 +863,7 @@
             
             // Error handlers
             radioAudio.addEventListener('error', (e) => {
-                console.error(`SHOUTcast stream ${streamIndex + 1} error:`, e.target.error);
+                console.error(`Stream ${streamIndex + 1} error:`, e.target.error);
                 
                 if (radioPlaying) {
                     // Try next stream
@@ -868,10 +874,107 @@
             });
             
             radioAudio.addEventListener('stalled', () => {
-                console.log(`SHOUTcast stream ${streamIndex + 1} stalled`);
+                console.log(`Stream ${streamIndex + 1} stalled`);
                 document.getElementById('radioTrack').textContent = 'Heaven\'s Embassy Radio - Buffering...';
                 
                 if (radioPlaying) {
                     setTimeout(() => {
                         connectToRadioStream(streamIndex + 1);
-                    }, 3
+                    }, 3000);
+                }
+            });
+
+            // Start playback
+            radioAudio.play().catch(e => {
+                console.error('Initial play error:', e);
+                setTimeout(() => connectToRadioStream(streamIndex + 1), 1500);
+            });
+        }
+
+        // Update radio track periodically (simulated for now, replace with real metadata if available)
+        function updateRadioTrack() {
+            if (radioPlaying) {
+                const tracks = [
+                    "Praise and Worship - Hillsong",
+                    "Gospel Hits - Kirk Franklin",
+                    "Sermon - Pastor Jonathan",
+                    "Christian Rock - TobyMac",
+                    "Brood Van Die Lewe - Profeet Meriba Kleinhans"
+                ];
+                document.getElementById('radioTrack').textContent = tracks[Math.floor(Math.random() * tracks.length)];
+            }
+        }
+
+        function updateSchedule() {
+            // Placeholder for schedule updates
+        }
+
+        function updateDonationProgress() {
+            // Placeholder for donation updates
+        }
+
+        function startProgramUpdater() {
+            // Placeholder for program updates
+        }
+
+        function updateUserInterface() {
+            // Placeholder for UI updates
+        }
+
+        function updateLiveUserCount() {
+            currentUserCount += Math.floor(Math.random() * 100) - 50;
+            if (currentUserCount < 10000) currentUserCount = 12847;
+            document.getElementById('userCount').textContent = currentUserCount.toLocaleString();
+        }
+
+        function showAdminLogin() {
+            document.getElementById('adminPanel').style.display = 'block';
+        }
+
+        function hideAdminLogin() {
+            document.getElementById('adminPanel').style.display = 'none';
+        }
+
+        function adminLogin() {
+            const username = document.getElementById('adminUsername').value;
+            const password = document.getElementById('adminPassword').value;
+            if (adminCredentials[username] && adminCredentials[username] === password) {
+                adminLoggedIn = true;
+                alert('Admin login successful!');
+                hideAdminLogin();
+            } else {
+                alert('Invalid username or password');
+            }
+        }
+
+        function showSection(section) {
+            alert(`Navigating to ${section} section (placeholder)`);
+        }
+
+        function showPrayerRequest() {
+            alert('Opening Prayer Request form (placeholder)');
+        }
+
+        function showCounseling() {
+            alert('Opening Counseling form (placeholder)');
+        }
+
+        function showTestimonies() {
+            alert('Opening Testimonies page (placeholder)');
+        }
+
+        function showContact() {
+            alert('Opening Contact form (placeholder)');
+        }
+
+        function donate() {
+            alert('Opening Donation page (placeholder)');
+        }
+
+        function toggleMobileMenu() {
+            const navMenu = document.getElementById('navMenu');
+            navMenu.classList.toggle('active');
+        }
+    </script>
+</body>
+</html>
